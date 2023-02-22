@@ -3,6 +3,8 @@
 
 // Importing openCV modules
 package org.example;
+import java.sql.*;
+import java.awt.Font;
 // importing swing and awt classes
 import java.awt.Dimension;
 import java.awt.EventQueue;
@@ -12,74 +14,96 @@ import java.awt.event.ActionListener;
 import java.sql.Date;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
+import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
-// Importing VideoCapture class
-// This class is responsible for taking screenshot
+import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
 
 
-// Class - Swing Class
 public class Camera extends JFrame {
-
-    // Camera screen
     private JLabel cameraScreen;
-
-    // Button for image capture
     private JButton btnCapture;
-
-    // Start camera
     private VideoCapture capture;
-
-    // Store image as 2D matrix
     private Mat image;
-
     private boolean clicked = false;
+    JLabel motion = new JLabel("");
 
     public Camera()
+
     {
+
+        try {
+            Connection connection = DriverManager.getConnection("jdbc:postgresql:Motion-log", "postgres", "ingsoc");
+            Statement st = connection.createStatement();
+            ResultSet rs = st.executeQuery("SELECT * FROM log");
+            while (rs.next())
+            {
+                System.out.print("Date: " + rs.getString("date") + ", ");
+                System.out.print("Time: " + rs.getString("time") + ", ");
+                System.out.println();
+            }
+            rs.close();
+            st.close();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            System.out.println("no");
+        }
         setLayout(null);
 
         cameraScreen = new JLabel();
         cameraScreen.setBounds(0, 0, 640, 480);
         add(cameraScreen);
 
-        JButton button = new JButton("Log");
-        button.setBounds(300, 480, 80, 40);
-        add(button);
 
-        button.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e)
-            {
+        motion.setBounds(250, 480, 400, 40);
+        motion.setFont(new Font("Serif", Font.PLAIN, 30));
 
-                clicked = true;
-            }
-        });
+
+        add(motion);
+
 
         setSize(new Dimension(640, 560));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
         setVisible(true);
         capture = new VideoCapture(0);
     }
 
-    // Creating a camera
-    public void startCamera()
-    {
+    public void startCamera() {
+        Mat frame = new Mat();
+        Mat firstFrame = new Mat();
+        Mat gray = new Mat();
+        Mat frameDelta = new Mat();
+        Mat thresh = new Mat();
+        List<MatOfPoint> cnts = new ArrayList<MatOfPoint>();
+        image = new Mat();
+        capture.read(frame);
+        ArrayList<String> log = new ArrayList<String>();
+        Imgproc.cvtColor(frame, firstFrame, Imgproc.COLOR_BGR2GRAY);
+        Imgproc.GaussianBlur(firstFrame, firstFrame, new Size(21, 21), 0);
 
         image = new Mat();
         byte[] imageData;
 
         ImageIcon icon;
-        while (true) {
+
+        while (capture.read(frame)) {
+
+            Imgproc.cvtColor(frame, gray, Imgproc.COLOR_BGR2GRAY);
+            Imgproc.GaussianBlur(gray, gray, new Size(21, 21), 0);
+            Core.absdiff(firstFrame, gray, frameDelta);
+            Imgproc.threshold(frameDelta, thresh, 25, 255, Imgproc.THRESH_BINARY);
+
+            Imgproc.dilate(thresh, thresh, new Mat(), new Point(-1, -1), 2);
+            Imgproc.findContours(thresh, cnts, new Mat(), Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
             capture.read(image);
 
             final MatOfByte buf = new MatOfByte();
@@ -87,32 +111,30 @@ public class Camera extends JFrame {
 
             imageData = buf.toArray();
 
-            // Add to JLabel
             icon = new ImageIcon(imageData);
             cameraScreen.setIcon(icon);
 
-            // Capture and save to file
-            if (clicked) {
-                // prompt for enter image name
-                String name = JOptionPane.showInputDialog(
-                        this, "Enter image name");
-                if (name == null) {
-                    name = new SimpleDateFormat(
-                            "yyyy-mm-dd-hh-mm-ss")
-                            .format(new Date(
-                                    HEIGHT, WIDTH, getX()));
+
+
+            motion.setText("No Movement");
+            for (int i = 0; i < cnts.size(); i++) {
+
+
+                if (Imgproc.contourArea(cnts.get(i)) < 500) {
+
+
+
+                }else {
+
+                    motion.setText("Motion Detected");
+                    cnts = new ArrayList<MatOfPoint>();
+
                 }
-
-                // Write to file
-                Imgcodecs.imwrite("images/" + name + ".jpg",
-                        image);
-
-                clicked = false;
             }
+
         }
     }
 
-    // Main driver method
     public static void main(String[] args)
     {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
@@ -120,8 +142,6 @@ public class Camera extends JFrame {
             @Override public void run()
             {
                 final Camera camera = new Camera();
-
-                // Start camera in thread
                 new Thread(new Runnable() {
                     @Override public void run()
                     {
