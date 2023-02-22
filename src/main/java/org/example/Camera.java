@@ -1,26 +1,14 @@
-// Java Program to take a Snapshot from System Camera
-// using OpenCV
-
-// Importing openCV modules
 package org.example;
 import java.sql.*;
 import java.awt.Font;
-// importing swing and awt classes
 import java.awt.Dimension;
 import java.awt.EventQueue;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-// Importing date class of sql package
-import java.sql.Date;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -32,7 +20,7 @@ public class Camera extends JFrame {
     private JButton btnCapture;
     private VideoCapture capture;
     private Mat image;
-    private boolean clicked = false;
+
     JLabel motion = new JLabel("");
 
     public Camera()
